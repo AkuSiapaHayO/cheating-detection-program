@@ -59,10 +59,10 @@ const App = () => {
         }
       };
 
-      // Run prediction every 2 seconds
+      // Run prediction every 0.5 seconds
       const interval = setInterval(() => {
         predict();
-      }, 500);
+      }, 2000); // 500 ms interval
 
       return () => clearInterval(interval);
     }
@@ -106,14 +106,14 @@ const App = () => {
         console.log('Cheating log received: ', data.logMessage);  // Logs to console for debugging
         setCheatingLogs((prevLogs) => [...prevLogs, data.logMessage]); // Append new cheating log to state
       });
-  
+
       // Listen for room closure event
       socket.on('room_closed', () => {
         alert("The room has been closed.");
         resetState();
       });
     }
-  
+
     // Clean up listeners when component unmounts
     return () => {
       if (isHost) {
@@ -122,7 +122,6 @@ const App = () => {
       }
     };
   }, [isHost]);
-  
 
   // Reset state to go back to home screen
   const resetState = () => {

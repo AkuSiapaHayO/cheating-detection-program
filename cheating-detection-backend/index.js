@@ -1,5 +1,3 @@
-// Backend code in index.js
-
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -30,6 +28,7 @@ io.on('connection', (socket) => {
   socket.on('create_room', async (data) => {
     const { roomCode } = data;
     console.log('Room created with code: ' + roomCode);
+    console.log('Host Socket ID: ' + socket.id);  // Debug log to confirm host socket ID
     socket.join(roomCode);
 
     try {
@@ -80,8 +79,8 @@ io.on('connection', (socket) => {
         // Find the room and emit the cheating log to the host
         const room = await Room.findOne({ roomCode: data.roomCode });
         if (room) {
+          console.log(`Emitting cheating log to hostSocketId: ${room.hostSocketId}`);
           io.to(room.hostSocketId).emit('cheating_log', { logMessage: `Cheating detected for student: ${data.userName}` });
-          console.log(`Cheating log emitted to host for room ${data.roomCode}`);
         }
       } else {
         console.error('Student not found in the database.');
@@ -91,8 +90,6 @@ io.on('connection', (socket) => {
     }
   });
   
-  
-
   // Handle room closure
   socket.on('close_room', async (data) => {
     const { roomCode } = data;
