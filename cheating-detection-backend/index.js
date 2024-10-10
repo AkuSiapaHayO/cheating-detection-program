@@ -16,8 +16,16 @@ const io = new Server(server, {
   },
 });
 
+const formatTime = () => {
+  const now = new Date();
+  return now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
 // MongoDB connection
-mongoose.connect('mongodb+srv://lmariowijaya:Sh%40dowMon4rch@cluster0.fl3a5.mongodb.net/cheating-detection?retryWrites=true&w=majority&appName=Cluster0')
+mongoose.connect('mongodb+srv://rodyfirmansyah14:P08PxtnJkbXEfTZk@cluster0.ygnvf.mongodb.net/cheating-detection?retryWrites=true&w=majority&appName=Cluster0')
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Failed to connect to MongoDB', err));
 
@@ -65,7 +73,7 @@ io.on('connection', (socket) => {
   // Event for cheating detection
   socket.on('cheating_detected', async (data) => {
     console.log(`Cheating detected! Student: ${data.userName}, Room: ${data.roomCode}`);
-    
+
     try {
       const student = await Student.findOne({ name: data.userName, roomCode: data.roomCode });
       if (student) {
@@ -75,12 +83,12 @@ io.on('connection', (socket) => {
           behavior: 'Cheating detected'
         });
         await cheatingLog.save();
-  
+
         // Find the room and emit the cheating log to the host
         const room = await Room.findOne({ roomCode: data.roomCode });
         if (room) {
           console.log(`Emitting cheating log to hostSocketId: ${room.hostSocketId}`);
-          io.to(room.hostSocketId).emit('cheating_log', { logMessage: `Cheating detected for student: ${data.userName}` });
+          io.to(room.hostSocketId).emit('cheating_log', { logMessage: `Cheating detected: ${data.userName} at ${formatTime()}` });
         }
       } else {
         console.error('Student not found in the database.');
@@ -89,7 +97,7 @@ io.on('connection', (socket) => {
       console.error('Error saving cheating incident:', error);
     }
   });
-  
+
   // Handle room closure
   socket.on('close_room', async (data) => {
     const { roomCode } = data;
