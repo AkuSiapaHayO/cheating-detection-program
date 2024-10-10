@@ -66,10 +66,10 @@ const App = () => {
         }
       };
 
-      // Run prediction every 0.5 seconds
+      // Run prediction every 2 seconds
       const interval = setInterval(() => {
         predict();
-      }, 2000); // 500 ms interval
+      }, 2000);
 
       return () => clearInterval(interval);
     }
@@ -133,28 +133,26 @@ const App = () => {
     };
   }, [isHost]);
 
-  // Handle cheating logs
+  // Handle cheating logs and room closure for both host and student
   useEffect(() => {
-    if (isHost) {
-      // Listen for cheating logs from the server in real-time
-      socket.on("cheating_log", (data) => {
-        console.log("Cheating log received: ", data.logMessage); // Logs to console for debugging
+    // Listen for cheating logs (for host)
+    if (isHost) { 
+      socket.on('cheating_log', (data) => {
+        console.log('Cheating log received: ', data.logMessage);  // Logs to console for debugging
         setCheatingLogs((prevLogs) => [...prevLogs, data.logMessage]); // Append new cheating log to state
-      });
-
-      // Listen for room closure event
-      socket.on("room_closed", () => {
-        alert("The room has been closed.");
-        resetState();
       });
     }
 
+    // Listen for room closure event for both host and student
+    socket.on('room_closed', () => {
+      alert("The room has been closed by the host.");
+      resetState(); // Reset state for both host and student
+    });
+
     // Clean up listeners when component unmounts
     return () => {
-      if (isHost) {
-        socket.off("cheating_log"); // Stop listening for cheating_log events
-        socket.off("room_closed"); // Stop listening for room_closed events
-      }
+      socket.off('cheating_log'); // Stop listening for cheating_log events
+      socket.off('room_closed');  // Stop listening for room_closed events
     };
   }, [isHost]);
 
