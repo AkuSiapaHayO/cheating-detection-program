@@ -101,7 +101,7 @@ const App = () => {
   // Handle cheating logs and room closure for both host and student
   useEffect(() => {
     // Listen for cheating logs (for host)
-    if (isHost) {
+    if (isHost) { 
       socket.on('cheating_log', (data) => {
         console.log('Cheating log received: ', data.logMessage);  // Logs to console for debugging
         setCheatingLogs((prevLogs) => [...prevLogs, data.logMessage]); // Append new cheating log to state
