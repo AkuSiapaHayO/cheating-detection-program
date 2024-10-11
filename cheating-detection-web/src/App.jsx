@@ -156,6 +156,18 @@ const App = () => {
     };
   }, [isHost]);
 
+  // Add the room_error listener
+  useEffect(() => {
+    socket.on('room_error', (data) => {
+      alert(data.message);  // Show error message to the user
+      setIsJoined(false);   // Reset joined state
+    });
+
+    return () => {
+      socket.off('room_error');  // Clean up listener
+    };
+  }, []);
+
   // Reset state to go back to home screen
   const resetState = () => {
     setIsJoined(false);

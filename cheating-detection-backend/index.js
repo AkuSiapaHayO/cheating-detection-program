@@ -25,7 +25,7 @@ const formatTime = () => {
   });
 };
 // MongoDB connection
-mongoose.connect('mongodb+srv://rodyfirmansyah14:P08PxtnJkbXEfTZk@cluster0.ygnvf.mongodb.net/cheating-detection?retryWrites=true&w=majority&appName=Cluster0')
+mongoose.connect('mongodb+srv://danielherawan04:1234@cluster0.xx7lo.mongodb.net/cheating-detection?retryWrites=true&w=majority&appName=Cluster0')
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Failed to connect to MongoDB', err));
 
@@ -48,27 +48,41 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Event for a student joining a room
   socket.on('join_room', async (data) => {
     const { roomCode, userName } = data;
-    console.log('User joined room: ' + roomCode);
-    socket.join(roomCode);
-
+  
     try {
-      const student = new Student({ name: userName, socketId: socket.id, roomCode });
-      await student.save();
-
+      // Check if the room exists
       const room = await Room.findOne({ roomCode });
+  
       if (room) {
+        // Room exists, proceed with joining
+        console.log('User joined room: ' + roomCode);
+        socket.join(roomCode);
+  
+        const student = new Student({ name: userName, socketId: socket.id, roomCode });
+        await student.save();
+  
         room.students.push(student._id);
         await room.save();
-        io.to(room.hostSocketId).emit('student_joined', { userName });
-        console.log(`User ${userName} joined room ${roomCode}`);
+  
+        // Check if host is still connected by socket ID
+        if (room.hostSocketId) {
+          io.to(room.hostSocketId).emit('student_joined', { userName }); // Emit to the host
+          console.log(`User ${userName} joined room ${roomCode}, notified host.`);
+        } else {
+          console.warn(`Host is not connected for room ${roomCode}`);
+        }
+      } else {
+        // Room does not exist, send error message to user
+        console.error(`Room ${roomCode} does not exist.`);
+        socket.emit('room_error', { message: `Room ${roomCode} does not exist.` });
       }
     } catch (error) {
-      console.error('Error saving student or updating room:', error);
+      console.error('Error joining room:', error);
+      socket.emit('room_error', { message: 'An error occurred while trying to join the room.' });
     }
-  });
+  });  
 
   // Event for cheating detection
   socket.on('cheating_detected', async (data) => {
