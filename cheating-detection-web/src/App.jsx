@@ -15,6 +15,7 @@ const App = () => {
   const [students, setStudents] = useState([]);
   const [cheatingLogs, setCheatingLogs] = useState([]); // Log for host view
   const [consecutiveCheating, setConsecutiveCheating] = useState(0); // New state to track consecutive cheating predictions
+  const [consecutiveCameraBlocked, setConsecutiveCameraBlocked] = useState(0); // New state to track consecutive blocked camera predictions
 
   // Load the Teachable Machine Pose Model
   useEffect(() => {
@@ -70,8 +71,9 @@ const App = () => {
             }
           });
 
+          // Handle cheating detection
           if (isCheatingDetected) {
-            setConsecutiveCheating((prev) => prev + 1); // Increment counter on cheating detection
+            setConsecutiveCheating((prev) => prev + 1); // Increment cheating counter
             console.log(
               `Cheating detected. Consecutive count: ${consecutiveCheating + 1}`
             );
@@ -80,7 +82,7 @@ const App = () => {
             console.log("Cheating not detected, resetting counter.");
           }
 
-          // If cheating is detected for 6 seconds straight (3 intervals of 2 seconds)
+          // Emit cheating event after 6 seconds of continuous cheating detection
           if (consecutiveCheating >= 3) {
             console.warn(
               "Cheating detected for 6 seconds. Logging cheating event."
@@ -89,27 +91,43 @@ const App = () => {
               userName,
               roomCode,
             });
-            setConsecutiveCheating(0); // Reset the counter after logging
+            setConsecutiveCheating(0); // Reset the cheating counter
           }
 
           // Handle camera blocked detection
           if (isCameraBlockedDetected) {
-            console.warn("Camera is blocked. Logging camera block event.");
+            setConsecutiveCameraBlocked((prev) => prev + 1); // Increment camera block counter
+            console.log(
+              `Camera blocked detected. Consecutive count: ${
+                consecutiveCameraBlocked + 1
+              }`
+            );
+          } else {
+            setConsecutiveCameraBlocked(0); // Reset if camera is no longer blocked
+            console.log("Camera is not blocked, resetting counter.");
+          }
+
+          // Emit camera blocked event after 6 seconds of continuous camera block detection
+          if (consecutiveCameraBlocked >= 3) {
+            console.warn(
+              "Camera blocked for 6 seconds. Logging camera block event."
+            );
             socket.emit("camera_blocked", {
               userName,
               roomCode,
             });
+            setConsecutiveCameraBlocked(0); // Reset the camera block counter
           }
         }
       };
 
       const interval = setInterval(() => {
         predict();
-      }, 2000);
+      }, 2000); // Run prediction every 2 seconds
 
-      return () => clearInterval(interval);
+      return () => clearInterval(interval); // Clear the interval on unmount
     }
-  }, [model, isJoined, isHost, consecutiveCheating]);
+  }, [model, isJoined, isHost, consecutiveCheating, consecutiveCameraBlocked]);
 
   // Event handlers for creating and joining a room
   const createRoom = () => {
