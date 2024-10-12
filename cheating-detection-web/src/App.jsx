@@ -47,11 +47,13 @@ const App = () => {
       const predict = async () => {
         if (webcamRef.current) {
           const { posenetOutput } = await model.estimatePose(
-            webcamRef.current.getCanvas(),
+            webcamRef.current.getCanvas()
           );
           const predictions = await model.predict(posenetOutput);
 
           let isCheatingDetected = false;
+          let isCameraBlockedDetected = false;
+
           predictions.forEach((prediction) => {
             if (
               prediction.probability > 0.9 &&
@@ -59,12 +61,19 @@ const App = () => {
             ) {
               isCheatingDetected = true;
             }
+
+            if (
+              prediction.probability > 0.9 &&
+              prediction.className === "Camera Blocked"
+            ) {
+              isCameraBlockedDetected = true;
+            }
           });
 
           if (isCheatingDetected) {
             setConsecutiveCheating((prev) => prev + 1); // Increment counter on cheating detection
             console.log(
-              `Cheating detected. Consecutive count: ${consecutiveCheating + 1}`,
+              `Cheating detected. Consecutive count: ${consecutiveCheating + 1}`
             );
           } else {
             setConsecutiveCheating(0); // Reset if no cheating detected
@@ -74,13 +83,22 @@ const App = () => {
           // If cheating is detected for 6 seconds straight (3 intervals of 2 seconds)
           if (consecutiveCheating >= 3) {
             console.warn(
-              "Cheating detected for 6 seconds. Logging cheating event.",
+              "Cheating detected for 6 seconds. Logging cheating event."
             );
             socket.emit("cheating_detected", {
               userName,
               roomCode,
             });
             setConsecutiveCheating(0); // Reset the counter after logging
+          }
+
+          // Handle camera blocked detection
+          if (isCameraBlockedDetected) {
+            console.warn("Camera is blocked. Logging camera block event.");
+            socket.emit("camera_blocked", {
+              userName,
+              roomCode,
+            });
           }
         }
       };
@@ -159,6 +177,12 @@ const App = () => {
         console.log("Cheating log received: ", data.logMessage); // Logs to console for debugging
         setCheatingLogs((prevLogs) => [...prevLogs, data.logMessage]); // Append new cheating log to state
       });
+
+      // Listen for camera block logs (for host)
+      socket.on("camera_blocked_log", (data) => {
+        console.log("Camera block log received: ", data.logMessage); // Logs to console for debugging
+        setCheatingLogs((prevLogs) => [...prevLogs, data.logMessage]); // Append new camera block log to state
+      });
     }
 
     // Listen for room closure event for both host and student
@@ -170,6 +194,7 @@ const App = () => {
     // Clean up listeners when component unmounts
     return () => {
       socket.off("cheating_log"); // Stop listening for cheating_log events
+      socket.off("camera_blocked_log"); // Stop listening for camera_blocked_log events
       socket.off("room_closed"); // Stop listening for room_closed events
     };
   }, [isHost]);
@@ -290,13 +315,13 @@ const App = () => {
           </ul>
 
           <h4 className="text-lg font-semibold mb-4 text-accent">
-            Cheating Logs:
+            Cheating and Camera Block Logs:
           </h4>
           <ul className="list-inside mb-6 text-secondary overflow-y-auto h-48 w-full border border-accent-light p-2 rounded-lg">
             {cheatingLogs.length > 0 ? (
               cheatingLogs.map((log, index) => <li key={index}>{log}</li>)
             ) : (
-              <li>No cheating detected yet.</li>
+              <li>No events detected yet.</li>
             )}
           </ul>
 
