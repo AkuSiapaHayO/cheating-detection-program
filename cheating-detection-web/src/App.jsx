@@ -14,6 +14,7 @@ const App = () => {
   const [userName, setUserName] = useState("");
   const [students, setStudents] = useState([]);
   const [cheatingLogs, setCheatingLogs] = useState([]); // Log for host view
+  const [consecutiveCheating, setConsecutiveCheating] = useState(0); // New state to track consecutive cheating predictions
 
   // Load the Teachable Machine Pose Model
   useEffect(() => {
@@ -24,9 +25,9 @@ const App = () => {
       }
 
       const modelURL =
-        "https://teachablemachine.withgoogle.com/models/_mhssP9in/model.json"; // Your model URL
+        "https://teachablemachine.withgoogle.com/models/edwVJ2M6V/model.json"; // Your model URL
       const metadataURL =
-        "https://teachablemachine.withgoogle.com/models/_mhssP9in/metadata.json"; // Your metadata URL
+        "https://teachablemachine.withgoogle.com/models/edwVJ2M6V/metadata.json"; // Your metadata URL
 
       try {
         const loadedModel = await window.tmPose.load(modelURL, metadataURL);
@@ -50,30 +51,47 @@ const App = () => {
           );
           const predictions = await model.predict(posenetOutput);
 
-          // Check predictions for cheating behavior
+          let isCheatingDetected = false;
           predictions.forEach((prediction) => {
             if (
               prediction.probability > 0.9 &&
               prediction.className === "Cheating"
             ) {
-              console.warn("Cheating detected!");
-              socket.emit("cheating_detected", {
-                userName,
-                roomCode,
-              });
+              isCheatingDetected = true;
             }
           });
+
+          if (isCheatingDetected) {
+            setConsecutiveCheating((prev) => prev + 1); // Increment counter on cheating detection
+            console.log(
+              `Cheating detected. Consecutive count: ${consecutiveCheating + 1}`,
+            );
+          } else {
+            setConsecutiveCheating(0); // Reset if no cheating detected
+            console.log("Cheating not detected, resetting counter.");
+          }
+
+          // If cheating is detected for 6 seconds straight (3 intervals of 2 seconds)
+          if (consecutiveCheating >= 3) {
+            console.warn(
+              "Cheating detected for 6 seconds. Logging cheating event.",
+            );
+            socket.emit("cheating_detected", {
+              userName,
+              roomCode,
+            });
+            setConsecutiveCheating(0); // Reset the counter after logging
+          }
         }
       };
 
-      // Run prediction every 2 seconds
       const interval = setInterval(() => {
         predict();
       }, 2000);
 
       return () => clearInterval(interval);
     }
-  }, [model, isJoined, isHost]);
+  }, [model, isJoined, isHost, consecutiveCheating]);
 
   // Event handlers for creating and joining a room
   const createRoom = () => {
@@ -136,35 +154,35 @@ const App = () => {
   // Handle cheating logs and room closure for both host and student
   useEffect(() => {
     // Listen for cheating logs (for host)
-    if (isHost) { 
-      socket.on('cheating_log', (data) => {
-        console.log('Cheating log received: ', data.logMessage);  // Logs to console for debugging
+    if (isHost) {
+      socket.on("cheating_log", (data) => {
+        console.log("Cheating log received: ", data.logMessage); // Logs to console for debugging
         setCheatingLogs((prevLogs) => [...prevLogs, data.logMessage]); // Append new cheating log to state
       });
     }
 
     // Listen for room closure event for both host and student
-    socket.on('room_closed', () => {
+    socket.on("room_closed", () => {
       alert("The room has been closed by the host.");
       resetState(); // Reset state for both host and student
     });
 
     // Clean up listeners when component unmounts
     return () => {
-      socket.off('cheating_log'); // Stop listening for cheating_log events
-      socket.off('room_closed');  // Stop listening for room_closed events
+      socket.off("cheating_log"); // Stop listening for cheating_log events
+      socket.off("room_closed"); // Stop listening for room_closed events
     };
   }, [isHost]);
 
   // Add the room_error listener
   useEffect(() => {
-    socket.on('room_error', (data) => {
-      alert(data.message);  // Show error message to the user
-      setIsJoined(false);   // Reset joined state
+    socket.on("room_error", (data) => {
+      alert(data.message); // Show error message to the user
+      setIsJoined(false); // Reset joined state
     });
 
     return () => {
-      socket.off('room_error');  // Clean up listener
+      socket.off("room_error"); // Clean up listener
     };
   }, []);
 
